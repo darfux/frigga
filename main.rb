@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 require 'mini_magick' # image manipulation
 require 'rtesseract'  # OCR
+require 'hpricot' #html analyzer
 
 require 'net/http'
 require 'yaml'
@@ -59,26 +60,15 @@ headers = {
   'Content-Type' => 'application/x-www-form-urlencoded'
 }
 
+# get encoding from html's charset
 def get_utf8_body(resp)
   body = resp.body
-  charset_begin = body.index("charset=")+8
-  charset_end = body.index("\"", charset_begin)
-  encoding = body[charset_begin, charset_end-charset_begin]
-  resp.body.force_encoding(encoding).encode("UTF-8")
+  doc = Hpricot(body)
+  encoding = doc.search("meta[@content]").first.attributes['content'].split('charset=')[1]
+  body.force_encoding(encoding).encode("UTF-8")
 end
 resp = http.post(uri.request_uri, data, headers)
 
-body = get_utf8_body resp
+body = get_utf8_body(resp)
 
 print body
-
-# get encoding from html's charset
-
-# body = response.body.force_encoding(body_encoding).encode("UTF-8")
-
-# if body.empty?
-#   puts "success"
-# else
-#   puts "wrong#{checkcode}"
-#   exit
-# end
