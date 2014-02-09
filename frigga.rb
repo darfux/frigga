@@ -5,6 +5,7 @@ require 'hpricot' #html analyzer
 require 'net/http'
 
 class Frigga
+  attr_reader :cookie, :user, :status
   :READY
   :SUCCESS
   :FAIL
@@ -88,7 +89,7 @@ protected
   FORM_submittype = '%C8%B7+%C8%CF'
   CONFIRM_captcha = "请输入正确的验证码！"
   CONFIRM_input = "用户不存在或密码错误！"
-  
+
   def self.get_utf8_body(resp)
     body = resp.body
     doc = Hpricot(body)
