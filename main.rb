@@ -32,7 +32,7 @@ class Frigga
       http = Net::HTTP.start(uri.host, uri.port)
       data = gen_form_data({
         operation:        FORM_operation,
-        usercode_text:    id+'1',
+        usercode_text:    id,
         userpwd_text:     pwd,
         checkcode_text:   @captcha,
         submittype:       FORM_submittype
@@ -50,16 +50,17 @@ class Frigga
         end
 
         content = info.inner_html
-        if content.match("请输入正确的验证码！")
+        print content,@captcha
+        if content.match(CONFIRM_captcha)
           @status[:stat] = :FAIL
           @status[:info] = :CAPTCHA_WRONG
           break unless @retry && @retrycounter>0
           @retrycounter-=1
           puts 'ocr failed,retrying...'
-          sleep 1
+          sleep 2
           redo
         end
-        if content.match("用户不存在或密码错误！")
+        if content.match(CONFIRM_input)
           @status[:stat] = :FAIL
           @status[:info] = :USER_INFO_WRONG
           break
@@ -69,26 +70,26 @@ class Frigga
       end
       @status[:stat] = :SUCCESS
       @status[:info] = nil
+      break
     end
-    # info = doc.search('li').first
-    # if info && info.inner_html.match("请输入正确的验证码！")
-    #   p 'e'
-    # end
+    return @status[:stat] == :SUCCESS
   end
 
   def to_s
     org = super
-    org.chop<<"\n[user]#{@user}; \n[cookie]#{@cookie}"<<'>'
+    org.chop<<"\n[user]#{@user};\n[cookie]#{@cookie}\n[status]#{@status}"<<'>'
   end
   
 protected
-  CAPTCHA_FILE = "captcha.jpg"
+  CAPTCHA_FILE = 'captcha.jpg'
   URL = 'http://222.30.32.10/'
   VC_URL = URL+'ValidateCode' # CAPTCHA_URL
   LOGIN_URL = URL+'stdloginAction.do'
 
   FORM_operation = 'no'
   FORM_submittype = '%C8%B7+%C8%CF'
+  CONFIRM_captcha = "请输入正确的验证码！"
+  CONFIRM_input = "用户不存在或密码错误！"
   def self.get_utf8_body(resp)
     body = resp.body
     doc = Hpricot(body)
@@ -114,9 +115,12 @@ protected
     img.write(response.read_body)
     img.close
     img = MiniMagick::Image.new(CAPTCHA_FILE)
-    img.resize(200)
+    img.resize(300)
+    sleep 1
+    # img.monochrome
+    # img.sharpen -1
 
-    @captcha = RTesseract.new(img.path).to_s_without_spaces
+    @captcha = RTesseract.new(img.path).to_s_without_spaces.gsub(/[^0-9]/,"")
   end
 
   def get_cookie
@@ -138,7 +142,7 @@ f = File.open('user.yml','r')
 data = f.read
 user = YAML.load(data)
 
-fr = Frigga.new
+fr = Frigga.new(false)
 body = fr.login(user[:id], user[:pwd])
-
+print fr
 # print body
